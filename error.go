@@ -1,6 +1,7 @@
 package errutil
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"runtime"
@@ -23,18 +24,8 @@ type Error struct {
 }
 
 // ErrorPrintFn should prints type, callstack, info, and inner error.
-var ErrorPrintFn func(error, map[string]string, error) string
+var ErrorPrinter func(error, map[string]string, error) string
 var DefaultCallStackLevel string = OnlyFuncInfo
-
-func AddInfo(e error, s ...string) *Error {
-	ee, ok := e.(*Error)
-	if ok {
-		ee.addInfo(s...).addCallStack(2)
-	} else {
-		ee = New(e, s...)
-	}
-	return ee
-}
 
 func New(t error, s ...string) *Error {
 	e := &Error{ typ: t, where: map[string]string{} }
@@ -46,6 +37,24 @@ func Embed(t error, inner error, s ...string) *Error {
 	return e.addInfo(s...).addCallStack(2)
 }
 
+func AddInfo(e error, s ...string) *Error {
+	ee, ok := e.(*Error)
+	if ok {
+		ee.addInfo(s...).addCallStack(2)
+	} else {
+		ee = New(e, s...)
+	}
+	return ee
+}
+
+func (e *Error) AddCallStack() *Error {
+	return e.addCallStack(2)
+}
+
+func (e *Error) Error() string {
+	return ErrorPrinter(e.typ, e.where, e.inner)
+}
+
 func CompareType(e error, t error) bool {
 	ee, ok := e.(*Error)
 	if ok {
@@ -55,6 +64,7 @@ func CompareType(e error, t error) bool {
 	}
 }
 
+// IsNotExist corresponds to os.IsNotExist
 func IsNotExist(e error) bool {
 	ee, ok := e.(*Error)
 	if ok {
@@ -64,15 +74,10 @@ func IsNotExist(e error) bool {
 	}
 }
 
-func (e *Error) Error() string {
-	return ErrorPrintFn(e.typ, e.where, e.inner)
-}
-
-func (e *Error) AddCallStack() *Error {
-	return e.addCallStack(2)
-}
 
 
+
+////////////////////////////////////////////////////////////////////
 
 func (e *Error) addInfo(s ...string) *Error {
 	m := e.where
@@ -129,7 +134,6 @@ const specialKeyMark = "$"
 const callStackKey = "$callstack"
 const callStackLevelKey = "$cslevel"
 
-
 func callStack(skip int) string {
 	buf := debug.Stack()
 	i := 0
@@ -148,33 +152,36 @@ func callStack(skip int) string {
 	return string(buf[i:])
 }
 
-func init() {
-	ErrorPrintFn = func(t error, m map[string]string, inner error) string {
-		buf := make([]byte, 0, 1024)
-		buf = append(buf, []byte(t.Error())...)
-		callstack := m[callStackKey]
-		if len(callstack) > 0 {
-			buf = append(buf, []byte(" at: ")...)
-			buf = append(buf, []byte(callstack)...)
-		}
-		v, exists := m[MoreInfo]
-		if exists {
-			buf = append(buf, ',', ' ')
-			buf = append(buf, []byte(v)...)
-		}
-		if inner != nil {
-			buf = append(buf, []byte(", inner error: ")...)
-			buf = append(buf, []byte(inner.Error())...)
-		}
-		for k, v := range m {
-			if len(k) > 0 && k[0:1] == specialKeyMark {
-				continue
-			}
-			buf = append(buf, ',', ' ')
-			buf = append(buf, []byte(k)...)
-			buf = append(buf, ':', ' ')
-			buf = append(buf, []byte(v)...)
-		}
-		return string(buf)
+func defaultErrorPrinter(t error, m map[string]string, inner error) string {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteString(t.Error())
+	callstack, exists := m[callStackKey]
+	if exists {
+		buf.WriteString(" at: ")
+		buf.WriteString(callstack)
 	}
+	v, exists := m[MoreInfo]
+	if exists {
+		buf.WriteString(", ")
+		buf.WriteString(v)
+	}
+	for k, v := range m {
+		if len(k) > 0 && k[0:1] == specialKeyMark {
+			continue
+		}
+		buf.WriteString(", ")
+		buf.WriteString(k)
+		buf.WriteString(": ")
+		buf.WriteString(v)
+	}
+	if inner != nil {
+		buf.WriteString(", inner error: ")
+		buf.WriteString(inner.Error())
+	}
+
+	return string(buf.Bytes())
+}
+
+func init() {
+	ErrorPrinter = defaultErrorPrinter
 }
