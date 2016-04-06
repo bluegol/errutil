@@ -1,0 +1,2 @@
+# errutil
+golang error helper
