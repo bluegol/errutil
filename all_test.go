@@ -2,9 +2,8 @@ package errutil
 
 import (
 	"errors"
-
-	"testing"
 	"fmt"
+	"testing"
 )
 
 
@@ -22,5 +21,4 @@ func TestAll(t *testing.T) {
 	DefaultCallStackLevel = FullCallStack
 	e5 := New(errors.New("Test5"))
 	fmt.Println(e5)
-
 }
