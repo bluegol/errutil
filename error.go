@@ -2,6 +2,7 @@ package errutil
 
 import (
 	"bytes"
+	"errors"
 	"os"
 )
 
@@ -13,10 +14,12 @@ const (
 	MoreInfo = "$moreinfo"
 )
 
+var ErrBug error
+
 type Error struct {
 	typ   error
-	where map[string]string
 	inner error
+	where map[string]string
 }
 
 // ErrorPrintFn should prints type, callstack, info, and inner error.
@@ -25,32 +28,38 @@ var DefaultCallStackLevel string = OnlyFuncInfo
 
 func New(t error, s ...string) *Error {
 	e := &Error{ typ: t, where: map[string]string{} }
-	return e.addInfo(s...).addCallStack(1)
+	return e.addInfo(s...).addCallStack(DefaultCallStackLevel, 1)
+}
+
+func NewErrBug(s ...string) *Error {
+	e := &Error{ typ: ErrBug, where: map[string]string{} }
+	return e.addInfo(s...).addCallStack(FullCallStack, 1)
 }
 
 func Embed(t error, inner error, s ...string) *Error {
 	e := &Error{ typ: t, where: map[string]string{}, inner: inner }
-	return e.addInfo(s...).addCallStack(1)
+	return e.addInfo(s...).addCallStack(DefaultCallStackLevel, 1)
 }
 
 func AddInfo(e error, s ...string) *Error {
 	ee, ok := e.(*Error)
 	if ok {
-		ee.addInfo(s...).addCallStack(1)
+		ee.addInfo(s...).addCallStack(DefaultCallStackLevel, 1)
 	} else {
 		ee = New(e, s...)
 	}
 	return ee
 }
 
-func (e *Error) AddCallStack() *Error {
-	return e.addCallStack(1)
+func (e *Error) AddCallStack(lvl string) *Error {
+	return e.addCallStack(lvl, 1)
 }
 
 func (e *Error) Error() string {
 	return ErrorPrinter(e.typ, e.where, e.inner)
 }
 
+// CompareType checks whether error e is of type t.
 func CompareType(e error, t error) bool {
 	ee, ok := e.(*Error)
 	if ok {
@@ -69,7 +78,6 @@ func IsNotExist(e error) bool {
 		return os.IsNotExist(e)
 	}
 }
-
 
 
 
@@ -95,18 +103,18 @@ func (e *Error) addInfo(s ...string) *Error {
 	return e
 }
 
-func (e *Error) addCallStack(skip int) *Error {
-	cslevel, exists := e.where[callStackLevelKey]
-	if ! exists {
-		cslevel = DefaultCallStackLevel
+// addCallStack adds callstack if it has not been added already
+func (e *Error) addCallStack(lvl string, skip int) *Error {
+	_, exists := e.where[callStackKey]
+	if exists {
+		return e
 	}
 	var callstack string
-	if cslevel == OnlyFuncInfo {
+	if lvl == OnlyFuncInfo {
 		callstack = CallerStr(skip+1)
-	} else if cslevel == FullCallStack {
+	} else if lvl == FullCallStack {
 		callstack = CallStack(skip+1)
 	}
-
 	e.where[callStackKey] = callstack
 	return e
 }
@@ -151,4 +159,5 @@ func defaultErrorPrinter(t error, m map[string]string, inner error) string {
 
 func init() {
 	ErrorPrinter = defaultErrorPrinter
+	ErrBug = errors.New("There may be a bug.")
 }

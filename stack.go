@@ -65,6 +65,8 @@ func CallStack(skip int) string {
 
 
 
+////////////////////////////////////////////////////////////////////
+
 func locationBytes(fn string, file string, line int) []byte {
 	b := []byte{}
 	b = append(b, []byte(file)...)

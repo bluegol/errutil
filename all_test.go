@@ -21,4 +21,6 @@ func TestAll(t *testing.T) {
 	DefaultCallStackLevel = FullCallStack
 	e5 := New(errors.New("Test5"))
 	fmt.Println(e5)
+	e6 := NewErrBug("err", "test")
+	fmt.Println(e6)
 }
