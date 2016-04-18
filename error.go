@@ -14,7 +14,7 @@ const (
 	MoreInfo = "$moreinfo"
 )
 
-var ErrBug error
+var ErrAssert error
 
 type Error struct {
 	typ   error
@@ -31,8 +31,8 @@ func New(t error, s ...string) *Error {
 	return e.addInfo(s...).addCallStack(DefaultCallStackLevel, 1)
 }
 
-func NewErrBug(s ...string) *Error {
-	e := &Error{ typ: ErrBug, where: map[string]string{} }
+func NewAssert(s ...string) *Error {
+	e := &Error{ typ: ErrAssert, where: map[string]string{} }
 	return e.addInfo(s...).addCallStack(FullCallStack, 1)
 }
 
@@ -159,5 +159,5 @@ func defaultErrorPrinter(t error, m map[string]string, inner error) string {
 
 func init() {
 	ErrorPrinter = defaultErrorPrinter
-	ErrBug = errors.New("There may be a bug.")
+	ErrAssert = errors.New("Something wrong")
 }
