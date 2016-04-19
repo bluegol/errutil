@@ -41,6 +41,11 @@ func Embed(t error, inner error, s ...string) *Error {
 	return e.addInfo(s...).addCallStack(DefaultCallStackLevel, 1)
 }
 
+func AssertEmbed(inner error, s ...string) *Error {
+	e := &Error{ typ: ErrAssert, where: map[string]string{}, inner: inner }
+	return e.addInfo(s...).addCallStack(FullCallStack, 1)
+}
+
 func AddInfo(e error, s ...string) *Error {
 	ee, ok := e.(*Error)
 	if ok {
